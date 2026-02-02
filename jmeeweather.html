@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Jmee Weather Station</title>
+    <link rel="manifest" href="manifest.json">
     <style>
         * {
             margin: 0;
@@ -267,6 +271,73 @@
 
         .api-status.error .status-dot {
             background: #e74c3c;
+        }
+
+        .api-status.offline {
+            background: rgba(241,196,15,0.2);
+            border-color: rgba(241,196,15,0.3);
+        }
+
+        .api-status.offline .status-dot {
+            background: #f1c40f;
+        }
+
+        /* Offline Banner */
+        .offline-banner {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(90deg, #f39c12, #e67e22);
+            color: white;
+            padding: 8px 15px;
+            text-align: center;
+            font-size: 0.8rem;
+            z-index: 10000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .offline-banner.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .offline-banner .offline-icon {
+            font-size: 1rem;
+        }
+
+        .offline-banner .offline-time {
+            font-size: 0.7rem;
+            opacity: 0.8;
+        }
+
+        body.offline-mode {
+            padding-top: 40px;
+        }
+
+        /* Cache indicator */
+        .cache-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.65rem;
+            color: rgba(255,255,255,0.5);
+            margin-left: 8px;
+        }
+
+        .cache-indicator.fresh {
+            color: #2ecc71;
+        }
+
+        .cache-indicator.stale {
+            color: #f1c40f;
+        }
+
+        .cache-indicator.old {
+            color: #e74c3c;
         }
 
         /* Favorites Section */
@@ -640,6 +711,13 @@
 
         .rain-slot-amount.heavy {
             color: #e74c3c;
+        }
+
+        .rain-slot-hour {
+            font-size: 0.65rem;
+            color: rgba(255,255,255,0.5);
+            margin-top: 3px;
+            font-family: 'SF Mono', 'Monaco', monospace;
         }
 
         /* Mini Rain Bar */
@@ -1678,6 +1756,741 @@
             border-radius: 2px;
         }
 
+        .radar-time-display {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+        }
+
+        .radar-time-main {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: white;
+            font-family: 'SF Mono', 'Monaco', monospace;
+        }
+
+        .radar-time-delta {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.6);
+        }
+
+        .radar-time-delta.future {
+            color: #2ecc71;
+        }
+
+        .radar-time-delta.past {
+            color: #f39c12;
+        }
+
+        .radar-timeline-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .radar-timeline-ticks {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.6rem;
+            color: rgba(255,255,255,0.4);
+            padding: 0 2px;
+        }
+
+        .radar-frames-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 10px;
+            max-height: 60px;
+            overflow-y: auto;
+        }
+
+        .radar-frame-btn {
+            padding: 3px 6px;
+            font-size: 0.65rem;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 4px;
+            color: rgba(255,255,255,0.7);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'SF Mono', 'Monaco', monospace;
+        }
+
+        .radar-frame-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .radar-frame-btn.active {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: white;
+        }
+
+        .radar-frame-btn.future {
+            border-color: rgba(46,204,113,0.4);
+            color: #2ecc71;
+        }
+
+        .radar-frame-btn.nowcast {
+            background: rgba(46,204,113,0.2);
+        }
+
+        /* Carte Marine OpenSeaMap */
+        .marine-chart-container {
+            background: rgba(0,0,0,0.4);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 15px 0;
+            border: 1px solid rgba(255,255,255,0.1);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .marine-chart-container.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            margin: 0;
+            border-radius: 0;
+            z-index: 9999;
+            padding: 0;
+            background: #1a1a2e;
+        }
+
+        .marine-chart-container.fullscreen .marine-chart-header {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            z-index: 1001;
+            background: rgba(0,0,0,0.8);
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin-bottom: 0;
+        }
+
+        .marine-chart-container.fullscreen .marine-chart-map {
+            height: 100vh;
+            border-radius: 0;
+        }
+
+        .marine-chart-container.fullscreen .marine-chart-legend {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            right: 15px;
+            z-index: 1001;
+            background: rgba(0,0,0,0.8);
+            padding: 12px 15px;
+            border-radius: 10px;
+            margin-top: 0;
+        }
+
+        .marine-chart-container.fullscreen .marine-chart-controls {
+            top: 80px;
+            right: 20px;
+        }
+
+        .marine-chart-container.fullscreen .layer-controls {
+            display: flex;
+        }
+
+        .marine-chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .marine-chart-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .fullscreen-hint {
+            font-size: 0.65rem;
+            color: rgba(255,255,255,0.4);
+            font-weight: normal;
+        }
+
+        .marine-chart-container.fullscreen .fullscreen-hint {
+            display: none;
+        }
+
+        .marine-chart-source {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.5);
+            background: rgba(0,0,0,0.3);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .marine-chart-map {
+            height: 280px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #1a1a2e;
+            cursor: pointer;
+        }
+
+        .marine-chart-legend {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 8px 15px;
+            margin-top: 10px;
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.7);
+        }
+
+        .marine-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .legend-marker {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+
+        .legend-marker.buoy {
+            background: #f1c40f;
+        }
+
+        .legend-marker.light {
+            background: #e74c3c;
+        }
+
+        .legend-marker.port {
+            background: #3498db;
+        }
+
+        .legend-marker.depth {
+            background: linear-gradient(180deg, #a8e6cf, #1abc9c, #0a5c4a);
+        }
+
+        .legend-marker.anchor {
+            background: #9b59b6;
+        }
+
+        .legend-marker.restricted {
+            background: #e74c3c;
+            border: 2px dashed #fff;
+        }
+
+        .legend-marker.lane {
+            background: transparent;
+            border: 2px solid #f39c12;
+        }
+
+        .legend-marker.wreck {
+            background: #34495e;
+        }
+
+        .marine-chart-controls {
+            position: absolute;
+            top: 55px;
+            right: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 1000;
+        }
+
+        .marine-zoom-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .marine-zoom-btn:hover {
+            background: rgba(0,0,0,0.9);
+        }
+
+        .marine-zoom-btn.close-btn {
+            background: rgba(231,76,60,0.8);
+            display: none;
+        }
+
+        .marine-zoom-btn.expand-btn {
+            background: rgba(46,204,113,0.7);
+        }
+
+        .marine-chart-container.fullscreen .marine-zoom-btn.close-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .marine-chart-container.fullscreen .marine-zoom-btn.expand-btn {
+            display: none;
+        }
+
+        .marine-zoom-btn.gps-btn {
+            background: rgba(52,152,219,0.7);
+        }
+
+        .marine-zoom-btn.gps-btn.active {
+            background: rgba(46,204,113,0.9);
+            animation: pulse-gps 1.5s infinite;
+        }
+
+        .marine-zoom-btn.fishing-btn {
+            background: rgba(230,126,34,0.7);
+        }
+
+        .marine-zoom-btn.fishing-btn.active {
+            background: rgba(46,204,113,0.9);
+        }
+
+        @keyframes pulse-gps {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(46,204,113,0.7); }
+            50% { box-shadow: 0 0 0 8px rgba(46,204,113,0); }
+        }
+
+        /* Marqueur GPS */
+        .gps-marker {
+            background: transparent;
+        }
+
+        .gps-marker-inner {
+            width: 30px;
+            height: 30px;
+            background: rgba(52,152,219,0.3);
+            border: 3px solid #3498db;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: pulse-gps-marker 2s infinite;
+        }
+
+        .gps-arrow {
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 12px solid #3498db;
+        }
+
+        @keyframes pulse-gps-marker {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        /* GPS Status */
+        .gps-status {
+            font-size: 0.65rem;
+            color: rgba(255,255,255,0.5);
+            margin-top: 8px;
+            padding: 5px 8px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .gps-status.active {
+            color: #2ecc71;
+            background: rgba(46,204,113,0.2);
+        }
+
+        .gps-status.error {
+            color: #e74c3c;
+            background: rgba(231,76,60,0.2);
+        }
+
+        .gps-center-btn {
+            width: 100%;
+            padding: 6px 10px;
+            margin-top: 5px;
+            border: none;
+            border-radius: 5px;
+            background: rgba(52,152,219,0.3);
+            color: white;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .gps-center-btn:hover {
+            background: rgba(52,152,219,0.5);
+        }
+
+        /* Mode Pêche */
+        .fishing-info {
+            background: rgba(230,126,34,0.2);
+            border-radius: 5px;
+            padding: 8px;
+            margin-top: 5px;
+        }
+
+        .fishing-data {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.8);
+            margin: 3px 0;
+        }
+
+        .fishing-data span:first-child {
+            color: rgba(255,255,255,0.5);
+        }
+
+        .fishing-good { color: #2ecc71 !important; }
+        .fishing-medium { color: #f1c40f !important; }
+        .fishing-poor { color: #e74c3c !important; }
+
+        /* Légende bathymétrie visible */
+        .bathy-legend {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            padding: 8px 15px;
+            border-radius: 8px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .marine-chart-container .bathy-legend {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .bathy-gradient {
+            width: 150px;
+            height: 12px;
+            background: linear-gradient(90deg,
+                #b8e6ff 0%,
+                #7fcdff 15%,
+                #4db8ff 25%,
+                #1a9fff 35%,
+                #0077cc 50%,
+                #005599 65%,
+                #003366 80%,
+                #001a33 100%
+            );
+            border-radius: 3px;
+        }
+
+        .bathy-labels {
+            display: flex;
+            justify-content: space-between;
+            width: 150px;
+            font-size: 0.55rem;
+            color: rgba(255,255,255,0.6);
+            margin-top: 2px;
+        }
+
+        .sst-legend {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            background: rgba(0,0,0,0.8);
+            padding: 8px 12px;
+            border-radius: 8px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .sst-gradient {
+            width: 120px;
+            height: 12px;
+            background: linear-gradient(90deg,
+                #313695 0%,
+                #4575b4 15%,
+                #74add1 30%,
+                #abd9e9 45%,
+                #fee090 60%,
+                #fdae61 75%,
+                #f46d43 90%,
+                #a50026 100%
+            );
+            border-radius: 3px;
+        }
+
+        .sst-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.55rem;
+            color: rgba(255,255,255,0.6);
+            margin-top: 2px;
+        }
+
+        /* Légende isobathes */
+        .contours-legend {
+            position: absolute;
+            top: 80px;
+            right: 70px;
+            background: rgba(0,0,0,0.85);
+            padding: 10px 12px;
+            border-radius: 8px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .contour-items {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .contour-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.65rem;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .contour-line {
+            width: 20px;
+            height: 3px;
+            border-radius: 1px;
+        }
+
+        /* Contrôles de couches */
+        .layer-controls {
+            position: absolute;
+            top: 55px;
+            left: 15px;
+            z-index: 1001;
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            background: rgba(0,0,0,0.85);
+            padding: 12px;
+            border-radius: 10px;
+            max-width: 220px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .layer-control-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 5px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            padding-bottom: 5px;
+        }
+
+        .layer-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 0;
+            cursor: pointer;
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.8);
+            transition: all 0.2s;
+        }
+
+        .layer-toggle:hover {
+            color: white;
+        }
+
+        .layer-toggle input {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .layer-toggle.disabled {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        /* Info bulle sur la carte */
+        .map-info-box {
+            position: absolute;
+            bottom: 60px;
+            left: 15px;
+            background: rgba(0,0,0,0.85);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            z-index: 1001;
+            display: none;
+            max-width: 250px;
+        }
+
+        .marine-chart-container.fullscreen .map-info-box {
+            display: block;
+        }
+
+        .map-info-box .coords {
+            font-family: 'SF Mono', monospace;
+            color: var(--accent-blue);
+        }
+
+        .map-info-box .depth-scale {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 8px;
+        }
+
+        .depth-gradient {
+            width: 100px;
+            height: 12px;
+            background: linear-gradient(90deg, #a8e6cf 0%, #56ab91 25%, #1abc9c 50%, #0a5c4a 75%, #023020 100%);
+            border-radius: 3px;
+        }
+
+        .depth-labels {
+            display: flex;
+            justify-content: space-between;
+            width: 100px;
+            font-size: 0.6rem;
+            color: rgba(255,255,255,0.5);
+            margin-top: 2px;
+        }
+
+        .map-info-box .info-coords {
+            margin-bottom: 5px;
+        }
+
+        .map-info-box .info-zoom {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.6);
+        }
+
+        .map-info-box .info-sources {
+            font-size: 0.6rem;
+            color: rgba(255,255,255,0.4);
+            margin-top: 5px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 5px;
+        }
+
+        /* Légende détaillée (fullscreen) */
+        .map-legend-detailed {
+            position: absolute;
+            bottom: 70px;
+            right: 15px;
+            background: rgba(0,0,0,0.9);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            z-index: 1001;
+            display: none;
+            max-width: 280px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .marine-chart-container.fullscreen .map-legend-detailed {
+            display: block;
+        }
+
+        .legend-section {
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .legend-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .legend-section-title {
+            font-weight: 600;
+            color: white;
+            margin-bottom: 6px;
+            font-size: 0.75rem;
+        }
+
+        .legend-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 3px 0;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .legend-icon {
+            width: 20px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        .legend-icon.cardinal-n { background: linear-gradient(180deg, #f1c40f 50%, #000 50%); color: #000; }
+        .legend-icon.cardinal-s { background: linear-gradient(180deg, #000 50%, #f1c40f 50%); color: #f1c40f; }
+        .legend-icon.cardinal-e { background: linear-gradient(180deg, #000 33%, #f1c40f 33%, #f1c40f 66%, #000 66%); color: #f1c40f; }
+        .legend-icon.cardinal-w { background: linear-gradient(180deg, #f1c40f 33%, #000 33%, #000 66%, #f1c40f 66%); color: #000; }
+
+        .legend-icon.light-white { color: #fff; text-shadow: 0 0 5px #fff; background: rgba(255,255,255,0.2); }
+        .legend-icon.light-red { color: #e74c3c; text-shadow: 0 0 5px #e74c3c; background: rgba(231,76,60,0.2); }
+        .legend-icon.light-green { color: #27ae60; text-shadow: 0 0 5px #27ae60; background: rgba(39,174,96,0.2); }
+        .legend-icon.light-yellow { color: #f1c40f; text-shadow: 0 0 5px #f1c40f; background: rgba(241,196,15,0.2); }
+
+        .legend-icon.port-icon { background: #3498db; color: white; }
+        .legend-icon.anchor-icon { background: #9b59b6; color: white; }
+        .legend-icon.fuel-icon { background: #e67e22; color: white; }
+        .legend-icon.repair-icon { background: #7f8c8d; color: white; }
+
+        .legend-icon.danger-icon { background: #c0392b; color: white; }
+        .legend-icon.rock-icon { background: #34495e; color: #e74c3c; }
+        .legend-icon.restricted-icon { background: rgba(231,76,60,0.3); border: 1px dashed #e74c3c; color: #e74c3c; }
+        .legend-icon.cable-icon { background: #f39c12; color: #000; }
+
+        .legend-icon.lane-icon { background: rgba(52,152,219,0.3); border: 1px solid #3498db; color: #3498db; }
+        .legend-icon.separation-icon { background: rgba(155,89,182,0.3); color: #9b59b6; }
+
+        .depth-gradient-large {
+            width: 100%;
+            height: 16px;
+            background: linear-gradient(90deg,
+                #b8e6ff 0%,      /* 0m - très clair */
+                #7fcdff 10%,     /* 2m */
+                #4db8ff 20%,     /* 5m */
+                #1a9fff 30%,     /* 10m */
+                #0077cc 45%,     /* 20m */
+                #005599 60%,     /* 50m */
+                #003366 80%,     /* 100m */
+                #001a33 100%     /* 200m+ */
+            );
+            border-radius: 4px;
+            margin: 8px 0 4px;
+        }
+
+        .depth-labels-large {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.6rem;
+            color: rgba(255,255,255,0.5);
+        }
+
         /* Sea State */
         .sea-state-bar {
             height: 6px;
@@ -2070,6 +2883,13 @@
     </style>
 </head>
 <body>
+    <!-- Offline Banner -->
+    <div class="offline-banner" id="offlineBanner">
+        <span class="offline-icon">📡</span>
+        <span>Mode hors-ligne - Données en cache</span>
+        <span class="offline-time" id="offlineTime"></span>
+    </div>
+
     <div class="app-container">
         <header class="header">
             <div class="logo">
@@ -2213,6 +3033,7 @@
             currentCoords: null,
             mode: 'weather',
             model: 'arome_france_hd',
+            actualModel: null, // Modèle réellement utilisé (peut différer si hors zone)
             units: {
                 wind: 'kmh',
                 temp: 'celsius',
@@ -2361,6 +3182,268 @@
             localStorage.setItem('meteoAppPreferences', JSON.stringify(prefs));
         }
 
+        // ========== MODE OFFLINE ==========
+        let isOnline = navigator.onLine;
+        let lastDataTimestamp = null;
+
+        function initOfflineMode() {
+            // Écouter les changements de connexion
+            window.addEventListener('online', handleOnline);
+            window.addEventListener('offline', handleOffline);
+
+            // Vérifier l'état initial
+            if (!navigator.onLine) {
+                handleOffline();
+            }
+
+            // Enregistrer le Service Worker si supporté
+            if ('serviceWorker' in navigator) {
+                registerServiceWorker();
+            }
+        }
+
+        async function registerServiceWorker() {
+            try {
+                // Créer le Service Worker dynamiquement (inline)
+                const swCode = `
+                    const CACHE_NAME = 'jmee-weather-v1';
+                    const STATIC_ASSETS = [
+                        './',
+                        './jmeeweather.html',
+                        'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+                        'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+                    ];
+
+                    // Installation - mise en cache des assets statiques
+                    self.addEventListener('install', event => {
+                        event.waitUntil(
+                            caches.open(CACHE_NAME).then(cache => {
+                                return cache.addAll(STATIC_ASSETS);
+                            })
+                        );
+                        self.skipWaiting();
+                    });
+
+                    // Activation - nettoyage des anciens caches
+                    self.addEventListener('activate', event => {
+                        event.waitUntil(
+                            caches.keys().then(keys => {
+                                return Promise.all(
+                                    keys.filter(key => key !== CACHE_NAME)
+                                        .map(key => caches.delete(key))
+                                );
+                            })
+                        );
+                        self.clients.claim();
+                    });
+
+                    // Fetch - stratégie Network First avec fallback cache
+                    self.addEventListener('fetch', event => {
+                        // Ignorer les requêtes non-GET
+                        if (event.request.method !== 'GET') return;
+
+                        event.respondWith(
+                            fetch(event.request)
+                                .then(response => {
+                                    // Mettre en cache la réponse
+                                    const responseClone = response.clone();
+                                    caches.open(CACHE_NAME).then(cache => {
+                                        cache.put(event.request, responseClone);
+                                    });
+                                    return response;
+                                })
+                                .catch(() => {
+                                    // Fallback sur le cache
+                                    return caches.match(event.request);
+                                })
+                        );
+                    });
+                `;
+
+                const blob = new Blob([swCode], { type: 'application/javascript' });
+                const swUrl = URL.createObjectURL(blob);
+
+                // Note: Pour un vrai déploiement, le SW doit être dans un fichier séparé
+                // Pour l'instant, on utilise uniquement le cache localStorage
+                console.log('Service Worker: Mode localStorage activé');
+            } catch (e) {
+                console.warn('Service Worker non disponible:', e);
+            }
+        }
+
+        function handleOnline() {
+            isOnline = true;
+            document.body.classList.remove('offline-mode');
+            document.getElementById('offlineBanner').classList.remove('show');
+
+            // Mettre à jour le statut API
+            const apiStatus = document.getElementById('apiStatus');
+            if (apiStatus) {
+                apiStatus.classList.remove('offline');
+            }
+
+            // Rafraîchir les données automatiquement
+            if (state.currentCoords) {
+                console.log('Connexion rétablie - Actualisation des données...');
+                loadWeatherForCoords(state.currentCoords.lat, state.currentCoords.lon, state.currentCity);
+            }
+        }
+
+        function handleOffline() {
+            isOnline = false;
+            document.body.classList.add('offline-mode');
+
+            const banner = document.getElementById('offlineBanner');
+            banner.classList.add('show');
+
+            // Afficher l'heure des dernières données
+            updateOfflineTime();
+
+            // Mettre à jour le statut API
+            const apiStatus = document.getElementById('apiStatus');
+            const apiStatusText = document.getElementById('apiStatusText');
+            if (apiStatus) {
+                apiStatus.classList.add('offline');
+            }
+            if (apiStatusText) {
+                apiStatusText.textContent = 'Mode hors-ligne';
+            }
+
+            // Charger les données en cache
+            loadCachedData();
+        }
+
+        function updateOfflineTime() {
+            const timeEl = document.getElementById('offlineTime');
+            if (timeEl && lastDataTimestamp) {
+                const diff = Date.now() - lastDataTimestamp;
+                const minutes = Math.floor(diff / 60000);
+                const hours = Math.floor(minutes / 60);
+
+                if (hours > 0) {
+                    timeEl.textContent = `(données de ${hours}h${minutes % 60}min)`;
+                } else if (minutes > 0) {
+                    timeEl.textContent = `(données de ${minutes}min)`;
+                } else {
+                    timeEl.textContent = '(données récentes)';
+                }
+            }
+        }
+
+        // Sauvegarder les données météo en cache
+        function cacheWeatherData() {
+            if (!state.weatherData || !state.currentCoords) return;
+
+            const cacheData = {
+                timestamp: Date.now(),
+                coords: state.currentCoords,
+                city: state.currentCity,
+                isPort: state.currentIsPort,
+                weatherData: state.weatherData,
+                marineData: state.marineData,
+                tidesData: state.tidesData,
+                model: state.model,
+                actualModel: state.actualModel
+            };
+
+            try {
+                localStorage.setItem('meteoAppWeatherCache', JSON.stringify(cacheData));
+                lastDataTimestamp = cacheData.timestamp;
+                console.log('Données météo mises en cache');
+            } catch (e) {
+                console.warn('Erreur cache localStorage:', e);
+                // Essayer de libérer de l'espace
+                try {
+                    localStorage.removeItem('meteoAppWeatherCache');
+                    localStorage.setItem('meteoAppWeatherCache', JSON.stringify(cacheData));
+                } catch (e2) {
+                    console.error('Impossible de mettre en cache:', e2);
+                }
+            }
+        }
+
+        // Charger les données depuis le cache
+        function loadCachedData() {
+            try {
+                const cached = localStorage.getItem('meteoAppWeatherCache');
+                if (!cached) {
+                    showError('Aucune donnée en cache disponible. Connectez-vous à Internet.');
+                    return false;
+                }
+
+                const cacheData = JSON.parse(cached);
+                lastDataTimestamp = cacheData.timestamp;
+
+                // Restaurer l'état
+                state.currentCoords = cacheData.coords;
+                state.currentCity = cacheData.city;
+                state.currentIsPort = cacheData.isPort;
+                state.weatherData = cacheData.weatherData;
+                state.marineData = cacheData.marineData;
+                state.tidesData = cacheData.tidesData;
+                state.actualModel = cacheData.actualModel;
+                state.lastUpdate = new Date(cacheData.timestamp);
+
+                // Mettre à jour l'interface
+                const locationText = document.getElementById('locationText');
+                if (locationText) {
+                    locationText.textContent = cacheData.city || 'Position';
+                }
+
+                // Afficher les données
+                renderCurrentView();
+
+                // Afficher l'indicateur de cache
+                showCacheIndicator();
+
+                console.log('Données chargées depuis le cache');
+                return true;
+            } catch (e) {
+                console.error('Erreur chargement cache:', e);
+                return false;
+            }
+        }
+
+        function showCacheIndicator() {
+            if (!lastDataTimestamp) return;
+
+            const diff = Date.now() - lastDataTimestamp;
+            const minutes = Math.floor(diff / 60000);
+
+            let className = 'cache-indicator';
+            let text = '';
+
+            if (minutes < 30) {
+                className += ' fresh';
+                text = '✓ Données récentes';
+            } else if (minutes < 120) {
+                className += ' stale';
+                text = `⚠ Données de ${minutes}min`;
+            } else {
+                className += ' old';
+                const hours = Math.floor(minutes / 60);
+                text = `⚠ Données de ${hours}h`;
+            }
+
+            // Ajouter l'indicateur près du statut API
+            const apiStatus = document.getElementById('apiStatus');
+            if (apiStatus) {
+                let indicator = document.getElementById('cacheIndicator');
+                if (!indicator) {
+                    indicator = document.createElement('span');
+                    indicator.id = 'cacheIndicator';
+                    apiStatus.parentNode.insertBefore(indicator, apiStatus.nextSibling);
+                }
+                indicator.className = className;
+                indicator.textContent = text;
+            }
+        }
+
+        // Vérifier si on peut utiliser le réseau
+        function canUseNetwork() {
+            return navigator.onLine;
+        }
+
         // Charger les préférences utilisateur
         function loadPreferences() {
             const saved = localStorage.getItem('meteoAppPreferences');
@@ -2446,9 +3529,74 @@
             `).join('');
         }
 
+        // Détecter le fuseau horaire approximatif selon les coordonnées
+        function getTimezoneForCoords(lat, lon) {
+            // Amérique du Nord
+            if (lon >= -130 && lon <= -60) {
+                if (lon >= -130 && lon <= -115) return 'America/Los_Angeles';
+                if (lon >= -115 && lon <= -100) return 'America/Denver';
+                if (lon >= -100 && lon <= -85) return 'America/Chicago';
+                if (lon >= -85 && lon <= -60) return 'America/New_York';
+            }
+            // Mexique / Amérique Centrale
+            if (lat >= 14 && lat <= 33 && lon >= -118 && lon <= -86) {
+                return 'America/Mexico_City';
+            }
+            // Canada Est
+            if (lat >= 45 && lon >= -80 && lon <= -50) {
+                return 'America/Toronto';
+            }
+            // Europe
+            if (lon >= -10 && lon <= 40 && lat >= 35 && lat <= 72) {
+                if (lon <= 0) return 'Europe/London';
+                if (lon <= 15) return 'Europe/Paris';
+                return 'Europe/Moscow';
+            }
+            // Asie
+            if (lon >= 100 && lon <= 145) return 'Asia/Tokyo';
+            if (lon >= 70 && lon < 100) return 'Asia/Kolkata';
+            // Océanie
+            if (lon >= 110 && lon <= 180 && lat <= 0) return 'Australia/Sydney';
+            // Défaut
+            return 'auto';
+        }
+
+        // Vérifier si les coordonnées sont dans la zone de couverture d'un modèle
+        function isInModelCoverage(lat, lon, modelKey) {
+            // AROME HD et AROME: France métropolitaine étendue
+            if (modelKey === 'arome_france_hd' || modelKey === 'arome_france') {
+                return lat >= 41 && lat <= 52 && lon >= -6 && lon <= 10;
+            }
+            // ARPÈGE: Europe
+            if (modelKey === 'arpege_europe') {
+                return lat >= 20 && lat <= 72 && lon >= -32 && lon <= 42;
+            }
+            // ICON: principalement Europe mais plus large
+            if (modelKey === 'icon_seamless') {
+                return lat >= -90 && lat <= 90; // Global
+            }
+            // GFS et ECMWF: Global
+            return true;
+        }
+
+        // Obtenir le meilleur modèle pour une localisation
+        function getBestModelForLocation(lat, lon, preferredModel) {
+            if (isInModelCoverage(lat, lon, preferredModel)) {
+                return preferredModel;
+            }
+            // Fallback vers GFS (couverture mondiale)
+            return 'gfs_seamless';
+        }
+
         // API Météo
         async function fetchWeatherData(lat, lon, modelKey) {
-            const model = models[modelKey];
+            // Vérifier la couverture et basculer si nécessaire
+            const actualModel = getBestModelForLocation(lat, lon, modelKey);
+            const model = models[actualModel];
+
+            // Stocker le modèle réellement utilisé pour l'affichage
+            state.actualModel = actualModel;
+
             let baseUrl = 'https://api.open-meteo.com/v1/';
 
             if (model.api === 'meteofrance') baseUrl += 'meteofrance';
@@ -2457,17 +3605,20 @@
             else if (model.api === 'icon') baseUrl += 'dwd-icon';
             else baseUrl += 'forecast';
 
+            // Détecter le fuseau horaire approprié
+            const timezone = getTimezoneForCoords(lat, lon);
+
             const params = new URLSearchParams({
                 latitude: lat,
                 longitude: lon,
                 hourly: 'temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,pressure_msl,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m',
                 daily: 'weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant',
                 current: 'temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m',
-                timezone: 'Europe/Paris',
+                timezone: timezone,
                 forecast_days: '7'
             });
 
-            if (model.api === 'meteofrance') params.append('models', modelKey);
+            if (model.api === 'meteofrance') params.append('models', actualModel);
 
             const response = await fetch(`${baseUrl}?${params.toString()}`);
             if (!response.ok) throw new Error(`API Error: ${response.status}`);
@@ -2918,6 +4069,9 @@
 
         // Initialisation
         document.addEventListener('DOMContentLoaded', () => {
+            // Initialiser le mode offline
+            initOfflineMode();
+
             loadFavorites();
             const lastLocation = loadPreferences();
             setupEventListeners();
@@ -3105,10 +4259,17 @@
                 state.tidesData = generateTidesData(lat, lon);
 
                 apiStatus.classList.remove('error');
-                apiStatusText.textContent = `API Live - ${models[state.model].name}`;
+                // Afficher le modèle réellement utilisé (peut différer si hors zone)
+                const usedModel = state.actualModel || state.model;
+                const modelInfo = models[usedModel].name;
+                const fallbackNote = (usedModel !== state.model) ? ' (auto)' : '';
+                apiStatusText.textContent = `API Live - ${modelInfo}${fallbackNote}`;
                 state.apiError = false;
 
                 renderCurrentView();
+
+                // Sauvegarder en cache pour le mode offline
+                cacheWeatherData();
 
             } catch (error) {
                 console.error('Erreur API:', error);
@@ -3116,6 +4277,11 @@
                 apiStatus.classList.add('error');
                 apiStatusText.textContent = 'Erreur API';
                 showError('Impossible de charger les données météo.');
+
+                // En cas d'erreur, essayer de charger les données en cache
+                if (!isOnline) {
+                    loadCachedData();
+                }
             }
         }
 
@@ -3402,13 +4568,20 @@
                     <div class="radar-map">
                         <div id="radarMap"></div>
                     </div>
-                    <div class="radar-controls">
-                        <button class="radar-btn" onclick="playRadar()">▶️</button>
-                        <div class="radar-timeline">
-                            <div class="radar-timeline-progress" id="radarProgress" style="width: 100%"></div>
-                        </div>
-                        <span class="radar-time-label" id="radarTimeLabel">Maintenant</span>
+                    <div class="radar-time-display" id="radarTimeDisplay">
+                        <div class="radar-time-main" id="radarTimeMain">--:--</div>
+                        <div class="radar-time-delta" id="radarTimeDelta">Chargement...</div>
                     </div>
+                    <div class="radar-controls">
+                        <button class="radar-btn" id="radarPlayBtn" onclick="playRadar()">▶️</button>
+                        <div class="radar-timeline-wrapper">
+                            <div class="radar-timeline">
+                                <div class="radar-timeline-progress" id="radarProgress" style="width: 100%"></div>
+                            </div>
+                            <div class="radar-timeline-ticks" id="radarTimelineTicks"></div>
+                        </div>
+                    </div>
+                    <div class="radar-frames-list" id="radarFramesList"></div>
                     <div class="radar-legend">
                         <div class="radar-legend-item">
                             <span class="radar-legend-color" style="background: #88ddff"></span>
@@ -3434,6 +4607,777 @@
                 </div>
             `;
         }
+
+        // Carte Marine OpenSeaMap
+        let marineChartMap = null;
+
+        function renderMarineChart(lat, lon) {
+            return `
+                <div class="marine-chart-container" id="marineChartContainer">
+                    <div class="marine-chart-header">
+                        <div class="marine-chart-title">
+                            🗺️ Carte Marine
+                            <span class="fullscreen-hint">(double-clic pour agrandir)</span>
+                        </div>
+                        <div class="marine-chart-source">OpenSeaMap</div>
+                    </div>
+                    <div class="marine-chart-map" id="marineChartMap"></div>
+
+                    <!-- Contrôles de couches (visible en fullscreen) -->
+                    <div class="layer-controls" id="layerControls">
+                        <div class="layer-control-title">📑 Couches cartographiques</div>
+                        <label class="layer-toggle">
+                            <input type="checkbox" id="layerSeamarks" checked onchange="toggleLayer('seamark', this.checked)">
+                            ⚓ Balises, bouées & marques
+                        </label>
+                        <label class="layer-toggle">
+                            <input type="checkbox" id="layerDepth" checked onchange="toggleLayer('depth', this.checked)">
+                            🌊 Sondes de profondeur
+                        </label>
+                        <label class="layer-toggle">
+                            <input type="checkbox" id="layerHarbours" checked onchange="toggleLayer('harbours', this.checked)">
+                            🏠 Ports, marinas & mouillages
+                        </label>
+                        <label class="layer-toggle">
+                            <input type="checkbox" id="layerBathy" onchange="toggleLayer('bathy', this.checked)">
+                            🌊 Bathymétrie colorée
+                        </label>
+                        <label class="layer-toggle">
+                            <input type="checkbox" id="layerContours" onchange="toggleLayer('contours', this.checked)">
+                            〰️ Isobathes (lignes profondeur)
+                        </label>
+                        <label class="layer-toggle">
+                            <input type="checkbox" id="layerSST" onchange="toggleLayer('sst', this.checked)">
+                            🌡️ Température de mer (SST)
+                        </label>
+
+                        <div class="layer-control-title" style="margin-top:12px">🎣 Mode Pêche</div>
+                        <label class="layer-toggle">
+                            <input type="checkbox" id="layerFishing" onchange="toggleFishingMode(this.checked)">
+                            🐟 Zones favorables pêche
+                        </label>
+                        <div id="fishingInfo" class="fishing-info" style="display:none;">
+                            <div class="fishing-data">
+                                <span>SST:</span> <span id="sstValue">--</span>°C
+                            </div>
+                            <div class="fishing-data">
+                                <span>Conditions:</span> <span id="fishingCondition">--</span>
+                            </div>
+                        </div>
+
+                        <div class="layer-control-title" style="margin-top:12px">📍 GPS & Tracking</div>
+                        <label class="layer-toggle">
+                            <input type="checkbox" id="gpsTracking" onchange="toggleGPSTracking(this.checked)">
+                            📡 Suivi GPS temps réel
+                        </label>
+                        <label class="layer-toggle">
+                            <input type="checkbox" id="gpsTrackShow" onchange="toggleGPSTrack(this.checked)">
+                            〰️ Afficher la trace
+                        </label>
+                        <button class="gps-center-btn" onclick="centerOnGPS()">📍 Centrer sur ma position</button>
+                        <div id="gpsStatus" class="gps-status">GPS inactif</div>
+                    </div>
+
+                    <!-- Légende détaillée (visible en fullscreen) -->
+                    <div class="map-legend-detailed" id="mapLegendDetailed">
+                        <div class="legend-section">
+                            <div class="legend-section-title">🚨 Balisage latéral (AISM-A)</div>
+                            <div class="legend-row"><span class="legend-icon" style="background:#e74c3c">▲</span> Bâbord (rouge) - à gauche en entrant</div>
+                            <div class="legend-row"><span class="legend-icon" style="background:#27ae60">▲</span> Tribord (vert) - à droite en entrant</div>
+                        </div>
+                        <div class="legend-section">
+                            <div class="legend-section-title">⚠️ Balisage cardinal</div>
+                            <div class="legend-row"><span class="legend-icon cardinal-n">▲▲</span> Nord - passer au Nord</div>
+                            <div class="legend-row"><span class="legend-icon cardinal-s">▼▼</span> Sud - passer au Sud</div>
+                            <div class="legend-row"><span class="legend-icon cardinal-e">▲▼</span> Est - passer à l'Est</div>
+                            <div class="legend-row"><span class="legend-icon cardinal-w">▼▲</span> Ouest - passer à l'Ouest</div>
+                        </div>
+                        <div class="legend-section">
+                            <div class="legend-section-title">💡 Feux & Phares</div>
+                            <div class="legend-row"><span class="legend-icon light-white">★</span> Feu blanc</div>
+                            <div class="legend-row"><span class="legend-icon light-red">★</span> Feu rouge</div>
+                            <div class="legend-row"><span class="legend-icon light-green">★</span> Feu vert</div>
+                            <div class="legend-row"><span class="legend-icon light-yellow">★</span> Feu jaune/orange</div>
+                        </div>
+                        <div class="legend-section">
+                            <div class="legend-section-title">🌊 Profondeurs (GEBCO)</div>
+                            <div class="depth-gradient-large"></div>
+                            <div class="depth-labels-large">
+                                <span>0m</span><span>5m</span><span>10m</span><span>20m</span><span>50m</span><span>100m</span><span>200m+</span>
+                            </div>
+                        </div>
+                        <div class="legend-section">
+                            <div class="legend-section-title">⚓ Infrastructures</div>
+                            <div class="legend-row"><span class="legend-icon port-icon">⚓</span> Port / Marina</div>
+                            <div class="legend-row"><span class="legend-icon anchor-icon">⚓</span> Zone de mouillage</div>
+                            <div class="legend-row"><span class="legend-icon fuel-icon">⛽</span> Station carburant</div>
+                            <div class="legend-row"><span class="legend-icon repair-icon">🔧</span> Réparations</div>
+                        </div>
+                        <div class="legend-section">
+                            <div class="legend-section-title">⛔ Dangers & Restrictions</div>
+                            <div class="legend-row"><span class="legend-icon danger-icon">☠️</span> Épave / Obstruction</div>
+                            <div class="legend-row"><span class="legend-icon rock-icon">▲</span> Rocher / Récif</div>
+                            <div class="legend-row"><span class="legend-icon restricted-icon">⊘</span> Zone interdite / Réglementée</div>
+                            <div class="legend-row"><span class="legend-icon cable-icon">〰️</span> Câble sous-marin</div>
+                        </div>
+                        <div class="legend-section">
+                            <div class="legend-section-title">🧭 Navigation</div>
+                            <div class="legend-row"><span class="legend-icon lane-icon">→</span> Chenal / Rail de navigation</div>
+                            <div class="legend-row"><span class="legend-icon separation-icon">║</span> Dispositif de séparation du trafic</div>
+                        </div>
+                    </div>
+
+                    <!-- Info box compact -->
+                    <div class="map-info-box" id="mapInfoBox">
+                        <div class="info-coords">📍 <span class="coords" id="mapCoords">${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E</span></div>
+                        <div class="info-zoom">🔍 Zoom: <span id="mapZoomLevel">13</span></div>
+                        <div class="info-sources">Sources: OpenSeaMap, GEBCO</div>
+                    </div>
+
+                    <!-- Légende compacte (mode normal) -->
+                    <div class="marine-chart-legend">
+                        <div class="marine-legend-item"><span class="legend-marker" style="background:#e74c3c">◀</span> Bâbord</div>
+                        <div class="marine-legend-item"><span class="legend-marker" style="background:#27ae60">▶</span> Tribord</div>
+                        <div class="marine-legend-item"><span class="legend-marker" style="background:#f1c40f">●</span> Cardinal</div>
+                        <div class="marine-legend-item"><span class="legend-marker light">★</span> Phare/Feu</div>
+                        <div class="marine-legend-item"><span class="legend-marker port">⚓</span> Port</div>
+                        <div class="marine-legend-item"><span class="legend-marker depth"></span> Profondeur</div>
+                        <div class="marine-legend-item"><span class="legend-marker" style="background:#e74c3c">☠</span> Danger</div>
+                        <div class="marine-legend-item"><span class="legend-marker" style="background:#9b59b6">⊘</span> Interdit</div>
+                    </div>
+                    <div class="marine-chart-controls">
+                        <button class="marine-zoom-btn close-btn" onclick="toggleMarineFullscreen()" title="Fermer (Escape)">✕</button>
+                        <button class="marine-zoom-btn expand-btn" onclick="toggleMarineFullscreen()" title="Plein écran">⛶</button>
+                        <button class="marine-zoom-btn" onclick="marineChartZoom(1)" title="Zoom +">➕</button>
+                        <button class="marine-zoom-btn" onclick="marineChartZoom(-1)" title="Zoom -">➖</button>
+                        <button class="marine-zoom-btn" onclick="marineChartCenter()" title="Recentrer">📍</button>
+                        <button class="marine-zoom-btn" onclick="toggleMapStyle()" title="Changer le style">🎨</button>
+                        <button class="marine-zoom-btn gps-btn" id="gpsToggleBtn" onclick="toggleGPSTracking()" title="Suivi GPS">📡</button>
+                        <button class="marine-zoom-btn fishing-btn" id="fishingToggleBtn" onclick="toggleFishingMode()" title="Mode Pêche">🎣</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function initMarineChart(lat, lon) {
+            // Charger Leaflet si pas déjà chargé
+            if (!window.L) {
+                const leafletCSS = document.createElement('link');
+                leafletCSS.rel = 'stylesheet';
+                leafletCSS.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+                document.head.appendChild(leafletCSS);
+
+                await new Promise((resolve) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+                    script.onload = resolve;
+                    document.head.appendChild(script);
+                });
+            }
+
+            await new Promise(r => setTimeout(r, 100));
+
+            const mapContainer = document.getElementById('marineChartMap');
+            if (!mapContainer) return;
+
+            if (marineChartMap) {
+                marineChartMap.remove();
+            }
+
+            marineChartMap = L.map('marineChartMap', {
+                zoomControl: false,
+                attributionControl: false
+            }).setView([lat, lon], 13);
+
+            // Couches de base
+            marineChartMap._baseLayers = {
+                light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }),
+                dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }),
+                satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18 }),
+                osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 })
+            };
+            marineChartMap._currentBaseLayer = 'light';
+            marineChartMap._baseLayers.light.addTo(marineChartMap);
+
+            // Couche GEBCO bathymétrie colorée (fond marin avec relief)
+            marineChartMap._gebcoLayer = L.tileLayer.wms('https://wms.gebco.net/mapserv?', {
+                layers: 'GEBCO_LATEST_SUB_ICE_TOPO',
+                format: 'image/png',
+                transparent: true,
+                opacity: 0.4,
+                maxZoom: 18
+            });
+
+            // Couche OpenSeaMap (données marines: bouées, phares, ports, etc.)
+            marineChartMap._seaLayer = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+                maxZoom: 18,
+                opacity: 1
+            }).addTo(marineChartMap);
+
+            // Couche de bathymétrie (profondeurs sondes) - OpenSeaMap
+            marineChartMap._depthLayer = L.tileLayer('https://tiles.openseamap.org/depth/{z}/{x}/{y}.png', {
+                maxZoom: 18,
+                opacity: 0.7
+            }).addTo(marineChartMap);
+
+            // Couche des ports/harbours/sport
+            marineChartMap._harbourLayer = L.tileLayer('https://tiles.openseamap.org/sport/{z}/{x}/{y}.png', {
+                maxZoom: 18,
+                opacity: 0.9
+            }).addTo(marineChartMap);
+
+            // Marqueur position actuelle (statique)
+            marineChartMap._homeMarker = L.circleMarker([lat, lon], {
+                radius: 10,
+                fillColor: '#e74c3c',
+                color: '#fff',
+                weight: 3,
+                opacity: 1,
+                fillOpacity: 0.9
+            }).addTo(marineChartMap).bindPopup(`
+                <div style="text-align:center">
+                    <b>${state.currentCity || 'Position'}</b><br>
+                    <small>Lat: ${lat.toFixed(4)}° | Lon: ${lon.toFixed(4)}°</small>
+                </div>
+            `);
+
+            // Marqueur GPS temps réel (initialement caché)
+            marineChartMap._gpsMarker = L.marker([lat, lon], {
+                icon: L.divIcon({
+                    className: 'gps-marker',
+                    html: '<div class="gps-marker-inner"><div class="gps-arrow"></div></div>',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                })
+            });
+
+            // Cercle de précision GPS
+            marineChartMap._gpsAccuracy = L.circle([lat, lon], {
+                radius: 50,
+                color: '#3498db',
+                fillColor: '#3498db',
+                fillOpacity: 0.15,
+                weight: 1
+            });
+
+            // Trace du parcours GPS
+            marineChartMap._gpsTrack = L.polyline([], {
+                color: '#e74c3c',
+                weight: 3,
+                opacity: 0.7
+            });
+
+            // Stocker les coordonnées pour recentrer
+            marineChartMap._homeCoords = [lat, lon];
+            marineChartMap._gpsTracking = false;
+            marineChartMap._gpsWatchId = null;
+            marineChartMap._gpsTrackPoints = [];
+
+            // Mettre à jour les coordonnées au survol
+            marineChartMap.on('mousemove', (e) => {
+                const coordsEl = document.getElementById('mapCoords');
+                if (coordsEl) {
+                    coordsEl.textContent = `${e.latlng.lat.toFixed(4)}°N, ${e.latlng.lng.toFixed(4)}°E`;
+                }
+            });
+
+            // Mettre à jour le niveau de zoom
+            marineChartMap.on('zoomend', () => {
+                const zoomEl = document.getElementById('mapZoomLevel');
+                if (zoomEl) {
+                    zoomEl.textContent = marineChartMap.getZoom();
+                }
+            });
+
+            // Double-clic pour fullscreen (évite le conflit avec le pan)
+            marineChartMap.doubleClickZoom.disable(); // Désactiver le zoom par double-clic
+            marineChartMap.on('dblclick', () => {
+                const container = document.getElementById('marineChartContainer');
+                if (container && !container.classList.contains('fullscreen')) {
+                    toggleMarineFullscreen();
+                }
+            });
+        }
+
+        // Toggle fullscreen
+        function toggleMarineFullscreen() {
+            const container = document.getElementById('marineChartContainer');
+            if (!container) return;
+
+            container.classList.toggle('fullscreen');
+
+            // Invalider la taille de la carte après la transition
+            setTimeout(() => {
+                if (marineChartMap) {
+                    marineChartMap.invalidateSize();
+                }
+            }, 350);
+
+            // Fermer avec Escape
+            if (container.classList.contains('fullscreen')) {
+                document.addEventListener('keydown', handleEscapeKey);
+            } else {
+                document.removeEventListener('keydown', handleEscapeKey);
+            }
+        }
+
+        function handleEscapeKey(e) {
+            if (e.key === 'Escape') {
+                const container = document.getElementById('marineChartContainer');
+                if (container && container.classList.contains('fullscreen')) {
+                    toggleMarineFullscreen();
+                }
+            }
+        }
+
+        // Changer le style de carte
+        let mapStyleIndex = 0;
+        const mapStyles = ['light', 'dark', 'satellite', 'osm'];
+
+        function toggleMapStyle() {
+            if (!marineChartMap || !marineChartMap._baseLayers) return;
+
+            // Retirer la couche actuelle
+            marineChartMap.removeLayer(marineChartMap._baseLayers[marineChartMap._currentBaseLayer]);
+
+            // Passer au style suivant
+            mapStyleIndex = (mapStyleIndex + 1) % mapStyles.length;
+            marineChartMap._currentBaseLayer = mapStyles[mapStyleIndex];
+
+            // Ajouter la nouvelle couche (en dessous des autres)
+            marineChartMap._baseLayers[marineChartMap._currentBaseLayer].addTo(marineChartMap);
+            marineChartMap._baseLayers[marineChartMap._currentBaseLayer].bringToBack();
+        }
+
+        // Toggle des couches
+        function toggleLayer(layerName, show) {
+            if (!marineChartMap) return;
+
+            // Initialiser les couches SST et Bathy si nécessaires
+            if (layerName === 'sst' && !marineChartMap._sstLayer) {
+                // Couche SST (température de surface) - NOAA/CMEMS
+                marineChartMap._sstLayer = L.tileLayer.wms('https://nrt.cmems-du.eu/thredds/wms/METOFFICE-GLO-SST-L4-NRT-OBS-SST-V2', {
+                    layers: 'analysed_sst',
+                    format: 'image/png',
+                    transparent: true,
+                    opacity: 0.6,
+                    styles: 'boxfill/rainbow',
+                    colorscalerange: '270,305' // Kelvin
+                });
+            }
+
+            if (layerName === 'bathy' && !marineChartMap._bathyLayer) {
+                // Bathymétrie colorée - GEBCO WMS
+                marineChartMap._bathyLayer = L.tileLayer.wms('https://wms.gebco.net/mapserv?', {
+                    layers: 'GEBCO_LATEST',
+                    format: 'image/png',
+                    transparent: true,
+                    opacity: 0.5
+                });
+            }
+
+            if (layerName === 'contours' && !marineChartMap._contoursLayer) {
+                // Isobathes (lignes de profondeur) - EMODnet Bathymetry
+                marineChartMap._contoursLayer = L.tileLayer.wms('https://ows.emodnet-bathymetry.eu/wms', {
+                    layers: 'contours',
+                    format: 'image/png',
+                    transparent: true,
+                    opacity: 0.8,
+                    styles: ''
+                });
+            }
+
+            const layers = {
+                seamark: marineChartMap._seaLayer,
+                depth: marineChartMap._depthLayer,
+                harbours: marineChartMap._harbourLayer,
+                gebco: marineChartMap._gebcoLayer,
+                sst: marineChartMap._sstLayer,
+                contours: marineChartMap._contoursLayer,
+                bathy: marineChartMap._bathyLayer
+            };
+
+            const layer = layers[layerName];
+            if (layer) {
+                if (show) {
+                    layer.addTo(marineChartMap);
+                    // Afficher la légende correspondante
+                    if (layerName === 'bathy') {
+                        showBathyLegend(true);
+                    }
+                    if (layerName === 'sst') {
+                        showSSTLegend(true);
+                    }
+                    if (layerName === 'contours') {
+                        showContoursLegend(true);
+                    }
+                } else {
+                    if (marineChartMap.hasLayer(layer)) {
+                        marineChartMap.removeLayer(layer);
+                    }
+                    if (layerName === 'bathy') {
+                        showBathyLegend(false);
+                    }
+                    if (layerName === 'sst') {
+                        showSSTLegend(false);
+                    }
+                    if (layerName === 'contours') {
+                        showContoursLegend(false);
+                    }
+                }
+            }
+        }
+
+        function showBathyLegend(show) {
+            let legend = document.getElementById('bathyLegend');
+            if (!legend && show) {
+                const container = document.getElementById('marineChartContainer');
+                if (container) {
+                    legend = document.createElement('div');
+                    legend.id = 'bathyLegend';
+                    legend.className = 'bathy-legend';
+                    legend.innerHTML = `
+                        <span style="font-size:0.7rem;color:rgba(255,255,255,0.7)">Profondeur:</span>
+                        <div>
+                            <div class="bathy-gradient"></div>
+                            <div class="bathy-labels">
+                                <span>0m</span>
+                                <span>50m</span>
+                                <span>200m</span>
+                                <span>1000m+</span>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(legend);
+                }
+            }
+            if (legend) {
+                legend.style.display = show ? 'flex' : 'none';
+            }
+        }
+
+        function showSSTLegend(show) {
+            let legend = document.getElementById('sstLegend');
+            if (!legend && show) {
+                const container = document.getElementById('marineChartContainer');
+                if (container) {
+                    legend = document.createElement('div');
+                    legend.id = 'sstLegend';
+                    legend.className = 'sst-legend';
+                    legend.innerHTML = `
+                        <div style="font-size:0.7rem;color:rgba(255,255,255,0.7);margin-bottom:3px">Temp. mer (SST):</div>
+                        <div class="sst-gradient"></div>
+                        <div class="sst-labels">
+                            <span>5°C</span>
+                            <span>15°C</span>
+                            <span>25°C</span>
+                        </div>
+                    `;
+                    container.appendChild(legend);
+                }
+            }
+            if (legend) {
+                legend.style.display = show ? 'block' : 'none';
+            }
+        }
+
+        function showContoursLegend(show) {
+            let legend = document.getElementById('contoursLegend');
+            if (!legend && show) {
+                const container = document.getElementById('marineChartContainer');
+                if (container) {
+                    legend = document.createElement('div');
+                    legend.id = 'contoursLegend';
+                    legend.className = 'contours-legend';
+                    legend.innerHTML = `
+                        <div style="font-size:0.7rem;color:rgba(255,255,255,0.7);margin-bottom:5px">〰️ Isobathes (EMODnet)</div>
+                        <div class="contour-items">
+                            <div class="contour-item"><span class="contour-line" style="background:#a8d8ff"></span> 0-10m</div>
+                            <div class="contour-item"><span class="contour-line" style="background:#7bc8ff"></span> 10-20m</div>
+                            <div class="contour-item"><span class="contour-line" style="background:#4db8ff"></span> 20-50m</div>
+                            <div class="contour-item"><span class="contour-line" style="background:#1a9fff"></span> 50-100m</div>
+                            <div class="contour-item"><span class="contour-line" style="background:#0077cc"></span> 100-200m</div>
+                            <div class="contour-item"><span class="contour-line" style="background:#005599"></span> 200-500m</div>
+                            <div class="contour-item"><span class="contour-line" style="background:#003366"></span> 500m+</div>
+                        </div>
+                    `;
+                    container.appendChild(legend);
+                }
+            }
+            if (legend) {
+                legend.style.display = show ? 'block' : 'none';
+            }
+        }
+
+        function marineChartZoom(delta) {
+            if (marineChartMap) {
+                marineChartMap.setZoom(marineChartMap.getZoom() + delta);
+            }
+        }
+
+        function marineChartCenter() {
+            if (marineChartMap && marineChartMap._homeCoords) {
+                marineChartMap.setView(marineChartMap._homeCoords, 13);
+            }
+        }
+
+        // ========== SUIVI GPS TEMPS RÉEL ==========
+        function toggleGPSTracking(forceState) {
+            if (!marineChartMap) return;
+
+            const isActive = typeof forceState === 'boolean' ? forceState : !marineChartMap._gpsTracking;
+            const btn = document.getElementById('gpsToggleBtn');
+            const checkbox = document.getElementById('gpsTracking');
+            const statusEl = document.getElementById('gpsStatus');
+
+            if (isActive) {
+                // Démarrer le suivi GPS
+                if (!navigator.geolocation) {
+                    if (statusEl) {
+                        statusEl.textContent = 'GPS non disponible';
+                        statusEl.className = 'gps-status error';
+                    }
+                    return;
+                }
+
+                marineChartMap._gpsTracking = true;
+                if (btn) btn.classList.add('active');
+                if (checkbox) checkbox.checked = true;
+                if (statusEl) {
+                    statusEl.textContent = 'Acquisition GPS...';
+                    statusEl.className = 'gps-status';
+                }
+
+                // Ajouter le marqueur GPS
+                marineChartMap._gpsMarker.addTo(marineChartMap);
+                marineChartMap._gpsAccuracy.addTo(marineChartMap);
+
+                // Démarrer le suivi
+                marineChartMap._gpsWatchId = navigator.geolocation.watchPosition(
+                    (position) => updateGPSPosition(position),
+                    (error) => handleGPSError(error),
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 5000,
+                        timeout: 10000
+                    }
+                );
+            } else {
+                // Arrêter le suivi GPS
+                marineChartMap._gpsTracking = false;
+                if (btn) btn.classList.remove('active');
+                if (checkbox) checkbox.checked = false;
+                if (statusEl) {
+                    statusEl.textContent = 'GPS inactif';
+                    statusEl.className = 'gps-status';
+                }
+
+                if (marineChartMap._gpsWatchId) {
+                    navigator.geolocation.clearWatch(marineChartMap._gpsWatchId);
+                    marineChartMap._gpsWatchId = null;
+                }
+
+                // Retirer le marqueur GPS
+                if (marineChartMap.hasLayer(marineChartMap._gpsMarker)) {
+                    marineChartMap.removeLayer(marineChartMap._gpsMarker);
+                }
+                if (marineChartMap.hasLayer(marineChartMap._gpsAccuracy)) {
+                    marineChartMap.removeLayer(marineChartMap._gpsAccuracy);
+                }
+            }
+        }
+
+        function updateGPSPosition(position) {
+            if (!marineChartMap || !marineChartMap._gpsTracking) return;
+
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            const accuracy = position.coords.accuracy;
+            const heading = position.coords.heading;
+            const speed = position.coords.speed;
+
+            // Mettre à jour le marqueur
+            marineChartMap._gpsMarker.setLatLng([lat, lon]);
+            marineChartMap._gpsAccuracy.setLatLng([lat, lon]);
+            marineChartMap._gpsAccuracy.setRadius(accuracy);
+
+            // Rotation selon le cap
+            if (heading !== null && !isNaN(heading)) {
+                const markerEl = document.querySelector('.gps-marker-inner');
+                if (markerEl) {
+                    markerEl.style.transform = `rotate(${heading}deg)`;
+                }
+            }
+
+            // Ajouter au track si activé
+            if (document.getElementById('gpsTrackShow')?.checked) {
+                marineChartMap._gpsTrackPoints.push([lat, lon]);
+                marineChartMap._gpsTrack.setLatLngs(marineChartMap._gpsTrackPoints);
+                if (!marineChartMap.hasLayer(marineChartMap._gpsTrack)) {
+                    marineChartMap._gpsTrack.addTo(marineChartMap);
+                }
+            }
+
+            // Mettre à jour le statut
+            const statusEl = document.getElementById('gpsStatus');
+            if (statusEl) {
+                const speedKmh = speed ? (speed * 3.6).toFixed(1) : '--';
+                statusEl.innerHTML = `📍 ${lat.toFixed(5)}°, ${lon.toFixed(5)}°<br>Précision: ${accuracy.toFixed(0)}m | Vitesse: ${speedKmh} km/h`;
+                statusEl.className = 'gps-status active';
+            }
+
+            // Mettre à jour les coordonnées affichées
+            const coordsEl = document.getElementById('mapCoords');
+            if (coordsEl) {
+                coordsEl.textContent = `${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E`;
+            }
+        }
+
+        function handleGPSError(error) {
+            const statusEl = document.getElementById('gpsStatus');
+            if (statusEl) {
+                let msg = 'Erreur GPS';
+                if (error.code === 1) msg = 'GPS refusé par l\'utilisateur';
+                if (error.code === 2) msg = 'Position indisponible';
+                if (error.code === 3) msg = 'Timeout GPS';
+                statusEl.textContent = msg;
+                statusEl.className = 'gps-status error';
+            }
+        }
+
+        function centerOnGPS() {
+            if (!marineChartMap) return;
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    marineChartMap.setView([lat, lon], 15);
+                },
+                (error) => handleGPSError(error),
+                { enableHighAccuracy: true }
+            );
+        }
+
+        function toggleGPSTrack(show) {
+            if (!marineChartMap) return;
+
+            if (show) {
+                if (marineChartMap._gpsTrackPoints.length > 0) {
+                    marineChartMap._gpsTrack.setLatLngs(marineChartMap._gpsTrackPoints);
+                    marineChartMap._gpsTrack.addTo(marineChartMap);
+                }
+            } else {
+                if (marineChartMap.hasLayer(marineChartMap._gpsTrack)) {
+                    marineChartMap.removeLayer(marineChartMap._gpsTrack);
+                }
+            }
+        }
+
+        // ========== MODE PÊCHE ==========
+        let fishingModeActive = false;
+        let seaSurfaceTemp = null;
+
+        async function toggleFishingMode(forceState) {
+            const isActive = typeof forceState === 'boolean' ? forceState : !fishingModeActive;
+            fishingModeActive = isActive;
+
+            const btn = document.getElementById('fishingToggleBtn');
+            const checkbox = document.getElementById('layerFishing');
+            const infoEl = document.getElementById('fishingInfo');
+
+            if (isActive) {
+                if (btn) btn.classList.add('active');
+                if (checkbox) checkbox.checked = true;
+                if (infoEl) infoEl.style.display = 'block';
+
+                // Charger les données SST et activer la couche
+                await loadFishingData();
+                toggleLayer('sst', true);
+                document.getElementById('layerSST').checked = true;
+            } else {
+                if (btn) btn.classList.remove('active');
+                if (checkbox) checkbox.checked = false;
+                if (infoEl) infoEl.style.display = 'none';
+
+                toggleLayer('sst', false);
+                document.getElementById('layerSST').checked = false;
+            }
+        }
+
+        async function loadFishingData() {
+            if (!state.currentCoords) return;
+
+            const { lat, lon } = state.currentCoords;
+
+            try {
+                // Récupérer la température de surface de mer via Open-Meteo Marine
+                const response = await fetch(
+                    `https://api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}&current=sea_surface_temperature&hourly=sea_surface_temperature`
+                );
+
+                if (response.ok) {
+                    const data = await response.json();
+                    seaSurfaceTemp = data.current?.sea_surface_temperature;
+
+                    updateFishingDisplay();
+                }
+            } catch (e) {
+                console.warn('Erreur chargement données pêche:', e);
+                // Fallback: estimation basée sur la saison et la latitude
+                estimateFishingConditions();
+            }
+        }
+
+        function updateFishingDisplay() {
+            const sstEl = document.getElementById('sstValue');
+            const conditionEl = document.getElementById('fishingCondition');
+
+            if (sstEl) {
+                sstEl.textContent = seaSurfaceTemp !== null ? seaSurfaceTemp.toFixed(1) : '--';
+            }
+
+            if (conditionEl && seaSurfaceTemp !== null) {
+                // Évaluer les conditions de pêche
+                let condition = '';
+                let cssClass = '';
+
+                // Conditions générales de pêche selon la température
+                // (varie selon les espèces ciblées)
+                if (seaSurfaceTemp >= 14 && seaSurfaceTemp <= 22) {
+                    condition = 'Excellentes (bar, dorade)';
+                    cssClass = 'fishing-good';
+                } else if (seaSurfaceTemp >= 10 && seaSurfaceTemp <= 26) {
+                    condition = 'Bonnes (selon espèces)';
+                    cssClass = 'fishing-medium';
+                } else if (seaSurfaceTemp < 10) {
+                    condition = 'Froides (morue, lieu)';
+                    cssClass = 'fishing-medium';
+                } else {
+                    condition = 'Eau chaude (thon, espadon)';
+                    cssClass = 'fishing-medium';
+                }
+
+                conditionEl.textContent = condition;
+                conditionEl.className = cssClass;
+            }
+        }
+
+        function estimateFishingConditions() {
+            // Estimation basée sur la saison
+            const month = new Date().getMonth();
+            const lat = state.currentCoords?.lat || 45;
+
+            // Estimation grossière de la SST
+            let baseSst = 15; // Température de base
+            const seasonalVariation = 8 * Math.sin((month - 3) * Math.PI / 6); // Max en août
+            const latitudeEffect = -(lat - 45) * 0.5; // Plus froid vers le nord
+
+            seaSurfaceTemp = baseSst + seasonalVariation + latitudeEffect;
+            updateFishingDisplay();
+        }
+
+        // ========== COUCHES BATHYMÉTRIE & SST ==========
 
         // État et fonctions du radar
         let radarMap = null;
@@ -3495,13 +5439,77 @@
                 const response = await fetch('https://api.rainviewer.com/public/weather-maps.json');
                 const data = await response.json();
 
-                radarFrames = data.radar.past.concat(data.radar.nowcast || []);
-                currentRadarFrame = radarFrames.length - 1;
+                // Séparer passé et prévisions (nowcast)
+                const pastFrames = data.radar.past || [];
+                const nowcastFrames = data.radar.nowcast || [];
 
+                // Marquer les frames nowcast
+                nowcastFrames.forEach(f => f.isNowcast = true);
+
+                radarFrames = pastFrames.concat(nowcastFrames);
+                currentRadarFrame = pastFrames.length - 1; // Commencer au présent
+
+                renderRadarFramesList();
                 updateRadarFrame();
             } catch (e) {
                 console.error('Erreur RainViewer:', e);
             }
+        }
+
+        // Afficher la liste des horaires disponibles
+        function renderRadarFramesList() {
+            const container = document.getElementById('radarFramesList');
+            const ticksContainer = document.getElementById('radarTimelineTicks');
+            if (!container) return;
+
+            const now = new Date();
+
+            // Générer les boutons pour chaque frame
+            container.innerHTML = radarFrames.map((frame, index) => {
+                const time = new Date(frame.time * 1000);
+                const diffMinutes = Math.round((time - now) / 60000);
+                const timeStr = time.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+                const isFuture = diffMinutes > 0;
+                const isNowcast = frame.isNowcast;
+                const classes = ['radar-frame-btn'];
+                if (index === currentRadarFrame) classes.push('active');
+                if (isFuture) classes.push('future');
+                if (isNowcast) classes.push('nowcast');
+
+                return `<button class="${classes.join(' ')}" onclick="selectRadarFrame(${index})" title="${isFuture ? 'Prévision' : 'Passé'}: ${diffMinutes > 0 ? '+' : ''}${diffMinutes} min">
+                    ${timeStr}
+                </button>`;
+            }).join('');
+
+            // Générer les ticks de la timeline (premier, milieu, dernier)
+            if (ticksContainer && radarFrames.length > 0) {
+                const firstTime = new Date(radarFrames[0].time * 1000);
+                const lastTime = new Date(radarFrames[radarFrames.length - 1].time * 1000);
+                const midIndex = Math.floor(radarFrames.length / 2);
+                const midTime = new Date(radarFrames[midIndex].time * 1000);
+
+                const formatTick = (d) => d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+                ticksContainer.innerHTML = `
+                    <span>${formatTick(firstTime)}</span>
+                    <span>|</span>
+                    <span>${formatTick(midTime)}</span>
+                    <span>|</span>
+                    <span>${formatTick(lastTime)}</span>
+                `;
+            }
+        }
+
+        // Sélectionner une frame spécifique
+        function selectRadarFrame(index) {
+            currentRadarFrame = index;
+            updateRadarFrame();
+
+            // Mettre à jour les boutons actifs
+            document.querySelectorAll('.radar-frame-btn').forEach((btn, i) => {
+                btn.classList.toggle('active', i === index);
+            });
         }
 
         function updateRadarFrame() {
@@ -3519,20 +5527,40 @@
                 zIndex: 1000
             }).addTo(radarMap);
 
-            // Mettre à jour le label
+            // Mettre à jour l'affichage du temps
             const time = new Date(frame.time * 1000);
             const now = new Date();
             const diffMinutes = Math.round((time - now) / 60000);
 
-            const label = document.getElementById('radarTimeLabel');
-            if (label) {
-                if (diffMinutes === 0) {
-                    label.textContent = 'Maintenant';
+            // Formater l'heure locale
+            const localTime = time.toLocaleTimeString('fr-FR', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+
+            // Affichage principal de l'heure
+            const timeMain = document.getElementById('radarTimeMain');
+            if (timeMain) {
+                timeMain.textContent = localTime;
+            }
+
+            // Affichage du delta et type
+            const timeDelta = document.getElementById('radarTimeDelta');
+            if (timeDelta) {
+                let deltaText;
+                let typeText = frame.isNowcast ? '📡 Prévision' : '📍 Observation';
+
+                if (Math.abs(diffMinutes) <= 5) {
+                    deltaText = 'Maintenant';
                 } else if (diffMinutes > 0) {
-                    label.textContent = `+${diffMinutes} min`;
+                    deltaText = `dans ${diffMinutes} min`;
                 } else {
-                    label.textContent = `${diffMinutes} min`;
+                    deltaText = `il y a ${Math.abs(diffMinutes)} min`;
                 }
+
+                timeDelta.textContent = `${typeText} • ${deltaText}`;
+                timeDelta.className = 'radar-time-delta ' + (diffMinutes > 0 ? 'future' : 'past');
             }
 
             // Mettre à jour la barre de progression
@@ -3543,18 +5571,27 @@
         }
 
         function playRadar() {
+            const playBtn = document.getElementById('radarPlayBtn');
+
             if (radarPlaying) {
                 radarPlaying = false;
                 clearInterval(radarInterval);
+                if (playBtn) playBtn.textContent = '▶️';
                 return;
             }
 
             radarPlaying = true;
+            if (playBtn) playBtn.textContent = '⏸️';
             currentRadarFrame = 0;
 
             radarInterval = setInterval(() => {
                 currentRadarFrame = (currentRadarFrame + 1) % radarFrames.length;
                 updateRadarFrame();
+
+                // Mettre à jour les boutons actifs
+                document.querySelectorAll('.radar-frame-btn').forEach((btn, i) => {
+                    btn.classList.toggle('active', i === currentRadarFrame);
+                });
 
                 if (currentRadarFrame === radarFrames.length - 1) {
                     setTimeout(() => {
@@ -3563,7 +5600,7 @@
                         }
                     }, 2000);
                 }
-            }, 500);
+            }, 700);
         }
 
         // Rendu de la rose des vents SVG
@@ -3776,19 +5813,29 @@
 
         // Prédiction de pluie par tranches
         function renderRainForecast(hourlyPrecip, hourlyWeatherCode) {
-            // Tranches: 10min, 30min, 1h, 2h, 5h
+            // Heure actuelle
+            const now = new Date();
+
+            // Tranches: 10min, 30min, 1h, 2h, 5h avec les minutes à ajouter
             const slots = [
-                { label: '10\'', index: 0 },
-                { label: '30\'', index: 0 },
-                { label: '1h', index: 1 },
-                { label: '2h', index: 2 },
-                { label: '5h', index: 5 }
+                { label: '10\'', index: 0, addMinutes: 10 },
+                { label: '30\'', index: 0, addMinutes: 30 },
+                { label: '1h', index: 1, addMinutes: 60 },
+                { label: '2h', index: 2, addMinutes: 120 },
+                { label: '5h', index: 5, addMinutes: 300 }
             ];
 
             // Calculer les précipitations pour chaque tranche
             const rainData = slots.map((slot, i) => {
                 const precip = hourlyPrecip[slot.index] || 0;
                 const code = hourlyWeatherCode[slot.index] || 0;
+
+                // Calculer l'heure locale correspondante
+                const futureTime = new Date(now.getTime() + slot.addMinutes * 60000);
+                const localTime = futureTime.toLocaleTimeString('fr-FR', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
 
                 // Pour 10min et 30min, interpoler depuis l'heure actuelle
                 let amount = precip;
@@ -3805,7 +5852,7 @@
                 else if (code >= 80 && code <= 82) { level = 'moderate'; icon = '🌧️'; }
                 else if (code >= 95) { level = 'heavy'; icon = '⛈️'; }
 
-                return { ...slot, amount, level, icon };
+                return { ...slot, amount, level, icon, localTime };
             });
 
             // Déterminer le statut global
@@ -3848,6 +5895,7 @@
                                 <div class="rain-slot-time">${r.label}</div>
                                 <div class="rain-slot-icon">${r.icon}</div>
                                 <div class="rain-slot-amount ${r.level}">${r.amount > 0 ? r.amount.toFixed(1) + 'mm' : '-'}</div>
+                                <div class="rain-slot-hour">${r.localTime}</div>
                             </div>
                         `).join('')}
                     </div>
@@ -4274,6 +6322,9 @@
                         ${renderTides(state.tidesData)}
                         ${renderTideCurve(state.tidesData)}
 
+                        <!-- Carte Marine OpenSeaMap -->
+                        ${renderMarineChart(state.currentCoords.lat, state.currentCoords.lon)}
+
                         <!-- Radar de pluie -->
                         ${renderRainRadar(state.currentCoords.lat, state.currentCoords.lon)}
 
@@ -4288,8 +6339,11 @@
                 </div>
             `;
 
-            // Initialiser le radar après le rendu
-            setTimeout(() => initRadar(state.currentCoords.lat, state.currentCoords.lon), 200);
+            // Initialiser la carte marine et le radar après le rendu
+            setTimeout(() => {
+                initMarineChart(state.currentCoords.lat, state.currentCoords.lon);
+                initRadar(state.currentCoords.lat, state.currentCoords.lon);
+            }, 200);
 
             // Charger le bulletin marine détaillé
             setTimeout(async () => {
